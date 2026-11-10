@@ -1,79 +1,82 @@
-import { ImageIcon, Pin } from 'lucide-react'
-import { motion, useTransform } from 'motion/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import useSWR from 'swr'
-import type { Visited } from '../shared/visited'
-import { CrtPanel } from './CrtPanel'
-import { CrtScreen } from './CrtScreen'
-import { formatFirstVisitedJa, formatVisitCountJa } from './format'
-import { JapanMap } from './JapanMap'
-import { byDistanceFromOsaka, prefectureName, prefectureNames, prefectures } from './prefectures'
-import { SegmentCount } from './SegmentCount'
-import { playTapBeep } from './sound'
-import { useCountUp } from './useCountUp'
+import { ImageIcon, Pin } from "lucide-react";
+import { motion, useTransform } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import useSWR from "swr";
+import type { Visited } from "../shared/visited";
+import { CrtPanel } from "./CrtPanel";
+import { CrtScreen } from "./CrtScreen";
+import { formatFirstVisitedJa, formatVisitCountJa } from "./format";
+import { JapanMap } from "./JapanMap";
+import { byDistanceFromOsaka, prefectureName, prefectureNames, prefectures } from "./prefectures";
+import { SegmentCount } from "./SegmentCount";
+import { playTapBeep } from "./sound";
+import { useCountUp } from "./useCountUp";
 
-type VisitedPrefecture = Visited['prefectures'][number]
+type VisitedPrefecture = Visited["prefectures"][number];
 
-const TOTAL = prefectures.features.length
+const TOTAL = prefectures.features.length;
 
-const evidenceUrl = (id: number) => `/api/evidence/${id}`
+const evidenceUrl = (id: number) => `/api/evidence/${id}`;
 
 // Screen content keys: "off" before power-on, "idle" with nothing to show, or "p<prefecture id>".
-const OFF = 'off'
-const IDLE = 'idle'
-const prefectureKey = (id: number) => `p${id}`
-const prefectureFromKey = (key: string) => (key.startsWith('p') ? Number(key.slice(1)) : undefined)
+const OFF = "off";
+const IDLE = "idle";
+const prefectureKey = (id: number) => `p${id}`;
+const prefectureFromKey = (key: string) => (key.startsWith("p") ? Number(key.slice(1)) : undefined);
 
 export default function MapPage() {
-  const { data, error } = useSWR<Visited>('/api/visited')
-  const visited = new Map(data?.prefectures.map((p) => [p.id, p]))
-  const [selected, setSelected] = useState<number>()
-  const [hovered, setHovered] = useState<number>()
+  const { data, error } = useSWR<Visited>("/api/visited");
+  const visited = new Map(data?.prefectures.map((p) => [p.id, p]));
+  const [selected, setSelected] = useState<number>();
+  const [hovered, setHovered] = useState<number>();
   // `selected` is the pinned prefecture: it outranks whatever the mouse is over.
-  const shown = selected ?? hovered
-  const total = data?.prefectures.length
-  const [booted, setBooted] = useState(false)
-  const markBooted = useCallback(() => setBooted(true), [])
-  const [mapRevealing, setMapRevealing] = useState(false)
-  const markMapReveal = useCallback(() => setMapRevealing(true), [])
-  const { count, shown: countShown } = useCountUp(booted ? total : undefined)
-  const progress = useTransform(count, (v) => v / TOTAL)
-  const lit = new Set(byDistanceFromOsaka(data?.prefectures.map((p) => p.id) ?? []).slice(0, countShown))
-  const info = useRef<HTMLElement>(null)
+  const shown = selected ?? hovered;
+  const total = data?.prefectures.length;
+  const [booted, setBooted] = useState(false);
+  const markBooted = useCallback(() => setBooted(true), []);
+  const [mapRevealing, setMapRevealing] = useState(false);
+  const markMapReveal = useCallback(() => setMapRevealing(true), []);
+  const { count, shown: countShown } = useCountUp(booted ? total : undefined);
+  const progress = useTransform(count, (v) => v / TOTAL);
+  const lit = new Set(
+    byDistanceFromOsaka(data?.prefectures.map((p) => p.id) ?? []).slice(0, countShown),
+  );
+  const info = useRef<HTMLElement>(null);
 
   useEffect(() => {
     for (const p of data?.prefectures ?? []) {
-      if (!p.hasEvidence) continue
-      const img = new Image()
-      img.fetchPriority = 'low'
-      img.src = evidenceUrl(p.id)
+      if (!p.hasEvidence) continue;
+      const img = new Image();
+      img.fetchPriority = "low";
+      img.src = evidenceUrl(p.id);
     }
-  }, [data])
+  }, [data]);
 
   function unpin() {
-    setSelected(undefined)
-    setHovered(undefined)
+    setSelected(undefined);
+    setHovered(undefined);
   }
 
   function togglePin(id: number) {
-    playTapBeep()
+    playTapBeep();
     if (id === selected) {
-      setSelected(undefined)
+      setSelected(undefined);
       // The pointer is still on it, so keep showing it as hovered.
-      setHovered(id)
-      return
+      setHovered(id);
+      return;
     }
-    setSelected(id)
+    setSelected(id);
     // On stacked (phone) layouts the screens are below the map, out of view.
-    if (!matchMedia('(min-width: 64rem)').matches) info.current?.scrollIntoView({ behavior: 'smooth' })
+    if (!matchMedia("(min-width: 64rem)").matches)
+      info.current?.scrollIntoView({ behavior: "smooth" });
   }
 
-  const infoKey = !mapRevealing ? OFF : shown === undefined ? IDLE : prefectureKey(shown)
+  const infoKey = !mapRevealing ? OFF : shown === undefined ? IDLE : prefectureKey(shown);
   const photoKey = !mapRevealing
     ? OFF
     : shown !== undefined && visited.get(shown)?.hasEvidence
       ? prefectureKey(shown)
-      : IDLE
+      : IDLE;
 
   return (
     <div className="grid min-h-dvh lg:h-dvh lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:overflow-hidden">
@@ -94,8 +97,8 @@ export default function MapPage() {
             aria-label={`Unpin ${prefectureName(selected)}`}
             className="btn btn-square btn-ghost btn-sm absolute top-6 left-6 text-primary lg:top-10 lg:left-10"
             onClick={() => {
-              playTapBeep()
-              unpin()
+              playTapBeep();
+              unpin();
             }}
           >
             <Pin aria-hidden size={16} />
@@ -112,11 +115,16 @@ export default function MapPage() {
           ) : (
             <>
               <p className="flex items-baseline gap-3">
-                <SegmentCount value={booted ? countShown : mapRevealing ? 0 : undefined} className="text-6xl" />
+                <SegmentCount
+                  value={booted ? countShown : mapRevealing ? 0 : undefined}
+                  className="text-6xl"
+                />
                 <span className="text-3xl text-base-content/60">
                   / <span className="font-script">{TOTAL}</span>
                 </span>
-                <span className="sr-only">{total === undefined ? 'Loading' : `${total} of ${TOTAL}`}</span>
+                <span className="sr-only">
+                  {total === undefined ? "Loading" : `${total} of ${TOTAL}`}
+                </span>
               </p>
               <div
                 role="progressbar"
@@ -125,7 +133,10 @@ export default function MapPage() {
                 aria-valuenow={total ?? 0}
                 className="h-2 w-full overflow-hidden rounded-full bg-primary/20"
               >
-                <motion.div className="h-full w-full origin-left rounded-full bg-primary" style={{ scaleX: progress }} />
+                <motion.div
+                  className="h-full w-full origin-left rounded-full bg-primary"
+                  style={{ scaleX: progress }}
+                />
               </div>
             </>
           )}
@@ -134,7 +145,9 @@ export default function MapPage() {
         <CrtPanel
           contentKey={infoKey}
           className="h-28 shrink-0"
-          render={(key) => <InfoScreen contentKey={key} visit={visited.get(prefectureFromKey(key) ?? -1)} />}
+          render={(key) => (
+            <InfoScreen contentKey={key} visit={visited.get(prefectureFromKey(key) ?? -1)} />
+          )}
         />
         <CrtPanel
           contentKey={photoKey}
@@ -143,22 +156,30 @@ export default function MapPage() {
         />
       </aside>
     </div>
-  )
+  );
 }
 
-function InfoScreen({ contentKey, visit }: { contentKey: string; visit: VisitedPrefecture | undefined }) {
-  const id = prefectureFromKey(contentKey)
-  if (contentKey === OFF) return null
+function InfoScreen({
+  contentKey,
+  visit,
+}: {
+  contentKey: string;
+  visit: VisitedPrefecture | undefined;
+}) {
+  const id = prefectureFromKey(contentKey);
+  if (contentKey === OFF) return null;
   if (id === undefined) {
     return (
       <div className="flex h-full items-center justify-center px-6 font-title text-xl font-semibold text-primary">
         都道府県を選んでください
       </div>
-    )
+    );
   }
   return (
     <div className="flex h-full items-center justify-between gap-4 px-6">
-      <span className="font-title text-3xl font-semibold text-primary">{prefectureNames(id).ja}</span>
+      <span className="font-title text-3xl font-semibold text-primary">
+        {prefectureNames(id).ja}
+      </span>
       <span className="text-right font-dot text-sm text-base-content/80">
         {visit?.visitCount === null ? null : visit ? (
           <>
@@ -170,22 +191,22 @@ function InfoScreen({ contentKey, visit }: { contentKey: string; visit: VisitedP
             )}
           </>
         ) : (
-          '未訪問'
+          "未訪問"
         )}
       </span>
     </div>
-  )
+  );
 }
 
 function PhotoScreen({ contentKey }: { contentKey: string }) {
-  const id = prefectureFromKey(contentKey)
-  if (contentKey === OFF) return null
+  const id = prefectureFromKey(contentKey);
+  if (contentKey === OFF) return null;
   if (id === undefined) {
     return (
       <div className="flex h-full items-center justify-center text-base-content/20">
         <ImageIcon aria-hidden size={56} strokeWidth={1.5} />
       </div>
-    )
+    );
   }
   // Sized to the photo's own shape, so the frame hugs portrait and landscape photos alike.
   return (
@@ -196,5 +217,5 @@ function PhotoScreen({ contentKey }: { contentKey: string }) {
         className="max-h-full max-w-full rounded-field shadow-lg ring-1 ring-base-content/10"
       />
     </div>
-  )
+  );
 }

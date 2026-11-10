@@ -1,6 +1,10 @@
 export type TakenAt = { utcMs: number; localDate: string };
 
-export type PhotoLocation = { assetId: string; point: [lon: number, lat: number]; takenAt: TakenAt | undefined };
+export type PhotoLocation = {
+  assetId: string;
+  point: [lon: number, lat: number];
+  takenAt: TakenAt | undefined;
+};
 
 const ASSET_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -27,13 +31,17 @@ type TimeBucket = { id: string[]; fileCreatedAt: string[]; localOffsetHours: num
 async function fetchTakenAt(): Promise<Map<string, TakenAt>> {
   const buckets = await immichJson<{ timeBucket: string }[]>("/timeline/buckets");
   const columns = await Promise.all(
-    buckets.map((b) => immichJson<TimeBucket>(`/timeline/bucket?timeBucket=${encodeURIComponent(b.timeBucket)}`)),
+    buckets.map((b) =>
+      immichJson<TimeBucket>(`/timeline/bucket?timeBucket=${encodeURIComponent(b.timeBucket)}`),
+    ),
   );
   const takenAt = new Map<string, TakenAt>();
   for (const { id, fileCreatedAt, localOffsetHours } of columns) {
     id.forEach((assetId, i) => {
       const utcMs = Date.parse(`${fileCreatedAt[i]}Z`);
-      const localDate = new Date(utcMs + localOffsetHours[i] * 3_600_000).toISOString().slice(0, 10);
+      const localDate = new Date(utcMs + localOffsetHours[i] * 3_600_000)
+        .toISOString()
+        .slice(0, 10);
       takenAt.set(assetId, { utcMs, localDate });
     });
   }
@@ -49,7 +57,11 @@ export async function fetchPhotoLocations(): Promise<PhotoLocation[]> {
 }
 
 // Immich previews are re-encoded without EXIF, so no GPS data leaks through.
-export async function fetchImage(assetId: string, size: "thumbnail" | "preview", cacheControl: string): Promise<Response> {
+export async function fetchImage(
+  assetId: string,
+  size: "thumbnail" | "preview",
+  cacheControl: string,
+): Promise<Response> {
   const res = await immich(`/assets/${assetId}/thumbnail?size=${size}`);
   if (!res.ok) return new Response(null, { status: res.status === 404 ? 404 : 502 });
   return new Response(res.body, {

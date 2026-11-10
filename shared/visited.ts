@@ -19,7 +19,12 @@ export type Visits = VisitPeriod[] | null;
 /** Public data: only the number of trips, never their dates. Excluded prefectures get null for both. */
 export type Visited = {
   updatedAt: string;
-  prefectures: { id: number; hasEvidence: boolean; firstVisited: FirstVisited; visitCount: number | null }[];
+  prefectures: {
+    id: number;
+    hasEvidence: boolean;
+    firstVisited: FirstVisited;
+    visitCount: number | null;
+  }[];
 };
 
 export type AdminPrefecture = PrefectureSettings & {

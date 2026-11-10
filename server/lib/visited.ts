@@ -3,13 +3,22 @@ import type { Feature, MultiPolygon, Polygon, Position } from "geojson";
 import { feature } from "topojson-client";
 import type { GeometryCollection, Topology } from "topojson-specification";
 import topo from "../../src/data/japan-prefectures.topo.json";
-import type { AdminPrefecture, PrefectureSettings, Visited, VisitPeriod } from "../../shared/visited";
+import type {
+  AdminPrefecture,
+  PrefectureSettings,
+  Visited,
+  VisitPeriod,
+} from "../../shared/visited";
 import { fetchPhotoLocations, type PhotoLocation, type TakenAt } from "./immich";
 import { DEFAULT_SETTINGS, getAllSettings } from "./settings";
 
 type Point = PhotoLocation["point"];
 type PrefectureProps = { id: number; nam: string; nam_ja: string };
-type PrefecturePhotos = { assetIds: string[]; oldest: TakenAt | undefined; localDates: Set<string> };
+type PrefecturePhotos = {
+  assetIds: string[];
+  oldest: TakenAt | undefined;
+  localDates: Set<string>;
+};
 type PhotosByPrefecture = { updatedAt: string; byPrefecture: Map<number, PrefecturePhotos> };
 
 // Simplified outlines drop small islands and piers, so allow a near miss.
@@ -22,8 +31,17 @@ const prefectures = feature(topology, topology.objects.japan)
   .features.map((f) => {
     const shape = f as Feature<Polygon | MultiPolygon, PrefectureProps>;
     const [[west, south], [east, north]] = geoBounds(shape);
-    const rings = shape.geometry.type === "Polygon" ? [shape.geometry.coordinates] : shape.geometry.coordinates;
-    return { id: shape.properties.id, shape, west, south, east, north, vertices: rings.flat(2) as Position[] };
+    const rings =
+      shape.geometry.type === "Polygon" ? [shape.geometry.coordinates] : shape.geometry.coordinates;
+    return {
+      id: shape.properties.id,
+      shape,
+      west,
+      south,
+      east,
+      north,
+      vertices: rings.flat(2) as Position[],
+    };
   })
   .sort((a, b) => a.id - b.id);
 
@@ -33,7 +51,12 @@ export function parsePrefectureId(value: unknown): number | undefined {
 }
 
 function withinBounds(p: (typeof prefectures)[number], [lon, lat]: Point, margin: number) {
-  return lon >= p.west - margin && lon <= p.east + margin && lat >= p.south - margin && lat <= p.north + margin;
+  return (
+    lon >= p.west - margin &&
+    lon <= p.east + margin &&
+    lat >= p.south - margin &&
+    lat <= p.north + margin
+  );
 }
 
 function prefectureAt(point: Point): number | undefined {
@@ -57,7 +80,8 @@ export function groupByPrefecture(photos: PhotoLocation[]): Map<number, Prefectu
     const id = prefectureAt(point);
     if (id === undefined) continue;
     let group = groups.get(id);
-    if (!group) groups.set(id, (group = { assetIds: [], oldest: undefined, localDates: new Set() }));
+    if (!group)
+      groups.set(id, (group = { assetIds: [], oldest: undefined, localDates: new Set() }));
     group.assetIds.push(assetId);
     if (!takenAt) continue;
     group.localDates.add(takenAt.localDate);
@@ -67,7 +91,8 @@ export function groupByPrefecture(photos: PhotoLocation[]): Map<number, Prefectu
 }
 
 const DAY_MS = 86_400_000;
-const nextDay = (date: string) => new Date(Date.parse(`${date}T00:00:00Z`) + DAY_MS).toISOString().slice(0, 10);
+const nextDay = (date: string) =>
+  new Date(Date.parse(`${date}T00:00:00Z`) + DAY_MS).toISOString().slice(0, 10);
 
 /** Groups photo dates into trips: consecutive days are one visit, a day without photos starts the next. */
 export function toVisits(localDates: Iterable<string>): VisitPeriod[] {
@@ -85,7 +110,10 @@ let inflight: Promise<PhotosByPrefecture> | undefined;
 
 export function refreshPhotos(): Promise<PhotosByPrefecture> {
   inflight ??= fetchPhotoLocations()
-    .then((photos) => (latest = { updatedAt: new Date().toISOString(), byPrefecture: groupByPrefecture(photos) }))
+    .then(
+      (photos) =>
+        (latest = { updatedAt: new Date().toISOString(), byPrefecture: groupByPrefecture(photos) }),
+    )
     .finally(() => (inflight = undefined));
   return inflight;
 }

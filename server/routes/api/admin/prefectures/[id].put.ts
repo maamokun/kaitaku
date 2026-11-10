@@ -11,7 +11,8 @@ export default defineHandler(async (event) => {
 
   const body = await readBody<Record<string, unknown>>(event);
   const override = body?.override;
-  const evidenceAssetId = body?.evidenceAssetId === null ? null : parseAssetId(body?.evidenceAssetId);
+  const evidenceAssetId =
+    body?.evidenceAssetId === null ? null : parseAssetId(body?.evidenceAssetId);
   const excludeVisits = body?.excludeVisits;
   if (
     (override !== "on" && override !== "off" && override !== null) ||
@@ -20,7 +21,8 @@ export default defineHandler(async (event) => {
   ) {
     throw new HTTPError({
       status: 400,
-      message: "Expected { override: 'on' | 'off' | null, evidenceAssetId: uuid | null, excludeVisits: boolean }",
+      message:
+        "Expected { override: 'on' | 'off' | null, evidenceAssetId: uuid | null, excludeVisits: boolean }",
     });
   }
 

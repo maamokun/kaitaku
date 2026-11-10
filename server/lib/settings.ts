@@ -7,7 +7,11 @@ type AllSettings = Record<number, Partial<PrefectureSettings>>;
 const KEY = "prefecture-settings";
 const kv = () => useKV("data");
 
-export const DEFAULT_SETTINGS: PrefectureSettings = { override: null, evidenceAssetId: null, excludeVisits: false };
+export const DEFAULT_SETTINGS: PrefectureSettings = {
+  override: null,
+  evidenceAssetId: null,
+  excludeVisits: false,
+};
 
 export async function getAllSettings(): Promise<AllSettings> {
   return (await kv().getItem<AllSettings>(KEY)) ?? {};
