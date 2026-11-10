@@ -65,7 +65,7 @@ function TitleCard({ rows }: { rows: "odd" | "even" }) {
   return (
     <div aria-hidden className={`crt-title crt-title-${rows} crt-rows-${rows}`}>
       <div className="crt-title-content flex flex-col items-center justify-center gap-4">
-        <p className="font-title text-7xl font-semibold text-primary lg:text-8xl">{TITLE}</p>
+        <p className="font-title text-7xl font-semibold text-primary md:text-8xl">{TITLE}</p>
         <p className="font-dot text-sm text-base-content/70">{COPYRIGHT}</p>
       </div>
     </div>

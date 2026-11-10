@@ -149,10 +149,7 @@
 .retro-button {
   display: inline-grid;
   place-items: center;
-  width: 3rem;
-  height: 3rem;
   border: 1px solid rgb(0 0 0 / 0.5);
-  border-radius: var(--radius-field);
   background: linear-gradient(to bottom, var(--color-base-300), var(--color-base-200));
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.12),

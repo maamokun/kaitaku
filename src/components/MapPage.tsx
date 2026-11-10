@@ -1,6 +1,6 @@
 import { ImageIcon, Pin } from "lucide-react";
 import { motion, useTransform } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import type { Visited } from "../../shared/visited";
 import { CrtCut, CrtPanel } from "./CrtPanel";
@@ -13,6 +13,8 @@ import { playTapBeep } from "../sound";
 import { COUNT_UP_SECONDS, useCountUp } from "../useCountUp";
 import { AnimatedLogo } from "./AnimatedLogo";
 import { TPoseRotate } from "./VrmTposeRotate";
+import { Drawer } from "./Drawer";
+import { useMediaQuery } from "../useMediaQuery";
 
 type VisitedPrefecture = Visited["prefectures"][number];
 
@@ -53,7 +55,9 @@ export default function MapPage() {
   const lit = new Set(
     byDistanceFromOsaka(data?.prefectures.map((p) => p.id) ?? []).slice(0, countShown),
   );
-  const info = useRef<HTMLElement>(null);
+  // On phones the screens live in a bottom drawer, which opens to show what was selected.
+  const isPhone = !useMediaQuery("(min-width: 48rem)");
+  const [drawerOpen, setDrawerOpen] = useState(false);
   // The "?" button swaps every screen over to the about page. Changing between the two cuts to blank.
   const [about, setAbout] = useState(false);
   const scene = about ? "about" : "map";
@@ -78,6 +82,7 @@ export default function MapPage() {
   function unpin() {
     setSelected(undefined);
     setHovered(undefined);
+    setDrawerOpen(false);
   }
 
   function togglePin(id: number) {
@@ -86,19 +91,21 @@ export default function MapPage() {
       setSelected(undefined);
       // The pointer is still on it, so keep showing it as hovered.
       setHovered(id);
+      setDrawerOpen(false);
       return;
     }
     setSelected(id);
-    // On stacked (phone) layouts the screens are below the map, out of view.
-    if (!matchMedia("(min-width: 64rem)").matches)
-      info.current?.scrollIntoView({ behavior: "smooth" });
+    setDrawerOpen(true);
   }
 
   function toggleAbout() {
     playTapBeep();
     setAbout(!about);
     setHovered(undefined);
-    if (!about) setCountPhase("off");
+    if (!about) {
+      setCountPhase("off");
+      setDrawerOpen(true);
+    }
     setHas3d(true);
   }
 
@@ -118,8 +125,12 @@ export default function MapPage() {
         : IDLE;
 
   return (
-    <div className="grid min-h-dvh lg:h-dvh lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:overflow-hidden">
-      <section className="relative h-[min(75vh,115vw)] p-4 lg:h-dvh lg:p-8">
+    <div className="h-dvh overflow-hidden md:grid md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:grid-rows-[auto_minmax(0,1fr)]">
+      {/* On phones the map screen fits above the drawer, so an open drawer never hides the
+          selected prefecture. It resizes along with the drawer, on the same curve. */}
+      <section
+        className={`relative h-dvh px-3 pt-20 transition-[padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none md:row-span-2 md:p-8 md:transition-none ${drawerOpen ? "pb-[calc(55dvh+0.75rem)]" : "pb-[4.25rem]"}`}
+      >
         <CrtScreen onMapReveal={markMapReveal} onBooted={markBooted}>
           <div
             className={`size-full ${about ? "crt-leaving" : "crt-entering"}`}
@@ -150,7 +161,7 @@ export default function MapPage() {
           <button
             type="button"
             aria-label={`Unpin ${prefectureName(selected)}`}
-            className="btn btn-square btn-ghost btn-sm absolute top-6 left-6 text-primary lg:top-10 lg:left-10"
+            className="btn btn-square btn-ghost btn-sm absolute top-[5.5rem] left-5 text-primary md:top-10 md:left-10"
             onClick={() => {
               playTapBeep();
               unpin();
@@ -161,76 +172,82 @@ export default function MapPage() {
         )}
         <p
           hidden={about}
-          className="pointer-events-none absolute right-7 bottom-6 text-[10px] text-base-content/40 lg:right-11 lg:bottom-10"
+          className="pointer-events-none absolute right-5 bottom-[4.75rem] text-[10px] text-base-content/40 md:right-11 md:bottom-10"
         >
           Boundaries: 地球地図日本 (GSI Global Map Japan) via dataofjapan/land
         </p>
       </section>
-      <aside ref={info} className="flex flex-col gap-6 bg-base-200 p-6 lg:h-dvh lg:p-8">
-        <header className="flex flex-col gap-3">
-          {error ? (
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-error">Could not load visited prefectures.</p>
-              <AboutButton pressed={about} disabled={!mapRevealing} onClick={toggleAbout} />
+      {/* Phones: a floating pill over the map. From md: the top of the right-hand column. */}
+      <header className="fixed top-3 left-1/2 z-20 grid w-[min(22rem,calc(100%-1.5rem))] -translate-x-1/2 grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 rounded-full bg-base-200/90 py-1.5 pr-1.5 pl-5 shadow-lg backdrop-blur md:static md:col-start-2 md:row-start-1 md:w-auto md:translate-x-0 md:gap-y-3 md:rounded-none md:bg-base-200 md:p-8 md:pb-0 md:shadow-none md:backdrop-blur-none">
+        {error ? (
+          <p className="text-error">Could not load visited prefectures.</p>
+        ) : (
+          <>
+            <p className="flex items-baseline gap-2 md:gap-3">
+              <SegmentCount
+                value={
+                  countPhase === "counting" ? countShown : countPhase === "zero" ? 0 : undefined
+                }
+                className="text-3xl md:text-6xl"
+              />
+              <span className="text-lg text-base-content/60 md:text-3xl">
+                / <span className="font-script">{TOTAL}</span>
+              </span>
+              <span className="sr-only">
+                {total === undefined ? "Loading" : `${total} of ${TOTAL}`}
+              </span>
+            </p>
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={TOTAL}
+              aria-valuenow={total ?? 0}
+              className="col-start-1 row-start-2 h-1 w-full overflow-hidden rounded-full bg-primary/20 md:col-span-2 md:h-2"
+            >
+              <motion.div
+                className="h-full w-full origin-left rounded-full bg-primary"
+                style={{ scaleX: progress }}
+              />
             </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between gap-4">
-                <p className="flex items-baseline gap-3">
-                  <SegmentCount
-                    value={
-                      countPhase === "counting" ? countShown : countPhase === "zero" ? 0 : undefined
-                    }
-                    className="text-6xl"
-                  />
-                  <span className="text-3xl text-base-content/60">
-                    / <span className="font-script">{TOTAL}</span>
-                  </span>
-                  <span className="sr-only">
-                    {total === undefined ? "Loading" : `${total} of ${TOTAL}`}
-                  </span>
-                </p>
-                <AboutButton pressed={about} disabled={!mapRevealing} onClick={toggleAbout} />
-              </div>
-              <div
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={TOTAL}
-                aria-valuenow={total ?? 0}
-                className="h-2 w-full overflow-hidden rounded-full bg-primary/20"
-              >
-                <motion.div
-                  className="h-full w-full origin-left rounded-full bg-primary"
-                  style={{ scaleX: progress }}
-                />
-              </div>
-            </>
-          )}
-        </header>
+          </>
+        )}
+        <div className="col-start-2 row-span-2 row-start-1 md:row-span-1">
+          <AboutButton pressed={about} disabled={!mapRevealing} onClick={toggleAbout} />
+        </div>
+      </header>
 
-        <CrtPanel
-          contentKey={infoKey}
-          scene={scene}
-          className="h-28 shrink-0"
-          drawsItself={infoKey === ABOUT}
-          render={(key) => (
-            <InfoScreen contentKey={key} visit={visited.get(prefectureFromKey(key) ?? -1)} />
-          )}
-        />
-        <CrtPanel
-          contentKey={photoKey}
-          scene={scene}
-          className="aspect-[4/3] lg:aspect-auto lg:min-h-0 lg:flex-1"
-          render={(key) => <PhotoScreen contentKey={key} />}
-          behind={
-            has3d && (
-              <div className={`absolute inset-0 ${about ? "crt-entering" : "crt-leaving"}`}>
-                <TPoseRotate active={about} />
-              </div>
-            )
-          }
-        />
-      </aside>
+      <Drawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        enabled={isPhone}
+        label="details"
+        className="fixed inset-x-0 bottom-0 z-30 flex h-[55dvh] flex-col rounded-t-box bg-base-200 shadow-[0_-8px_24px_rgb(0_0_0/0.4)] md:static md:col-start-2 md:row-start-2 md:h-auto md:min-h-0 md:rounded-none md:shadow-none"
+      >
+        <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 pb-4 md:gap-6 md:p-8 md:pt-6">
+          <CrtPanel
+            contentKey={infoKey}
+            scene={scene}
+            className="h-20 shrink-0 md:h-28"
+            drawsItself={infoKey === ABOUT}
+            render={(key) => (
+              <InfoScreen contentKey={key} visit={visited.get(prefectureFromKey(key) ?? -1)} />
+            )}
+          />
+          <CrtPanel
+            contentKey={photoKey}
+            scene={scene}
+            className="min-h-0 flex-1"
+            render={(key) => <PhotoScreen contentKey={key} />}
+            behind={
+              has3d && (
+                <div className={`absolute inset-0 ${about ? "crt-entering" : "crt-leaving"}`}>
+                  <TPoseRotate active={about} />
+                </div>
+              )
+            }
+          />
+        </div>
+      </Drawer>
     </div>
   );
 }
@@ -250,7 +267,7 @@ function AboutButton({
       aria-label="About"
       aria-pressed={pressed}
       disabled={disabled}
-      className="retro-button shrink-0 font-dot text-2xl disabled:opacity-50"
+      className="retro-button size-9 shrink-0 rounded-full md:rounded-field font-dot text-xl disabled:opacity-50 md:size-12 md:text-2xl"
       onClick={onClick}
     >
       ?
@@ -260,9 +277,9 @@ function AboutButton({
 
 function AboutScreen() {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-10 text-center">
-      <h2 className="font-title text-5xl font-semibold text-primary">なにこれ？</h2>
-      <p className="max-w-md font-dot text-base-content/80">
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto p-4 text-center md:gap-6 md:p-10">
+      <h2 className="font-title text-2xl font-semibold text-primary md:text-5xl">なにこれ？</h2>
+      <p className="max-w-md font-dot text-xs text-base-content/80 md:text-base">
         元々チュウニズムで行った都道府県を記録してたけど、なんかサービス停止とかするし、友達に「チュウニズムするためだけに旅行してるんか！」
         とか言われたので、このサイトを作ってみました。証拠写真とともに行った都道府県の記録がされています！
         <br />
@@ -338,7 +355,7 @@ function PhotoScreen({ contentKey }: { contentKey: string }) {
   }
   // Sized to the photo's own shape, so the frame hugs portrait and landscape photos alike.
   return (
-    <div className="flex size-full items-center justify-center p-6 lg:p-8">
+    <div className="flex size-full items-center justify-center p-6 md:p-8">
       <img
         src={evidenceUrl(id)}
         alt={`Photo taken in ${prefectureNames(id).en}`}
