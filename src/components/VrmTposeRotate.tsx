@@ -1,17 +1,19 @@
 "use client";
-import { useState, useEffect, FC } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useState, useEffect, type FC } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 // @ts-expect-error no types available for GLTFLoader
 import { GLTF, GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { Vector3 } from "three";
 import { VRMLoaderPlugin } from "@pixiv/three-vrm";
-import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import { CRT_FPS } from "../crt";
 
 export const VRMModel: FC<{
   vrm: import("@pixiv/three-vrm").VRM | null;
   mousePosition: { x: number; y: number };
 }> = ({ vrm, mousePosition }) => {
-  useFrame((_state, delta) => {
+  useFrame((_state, frameDelta) => {
+    // After a pause the gap since the last frame is long; don't spin or swing the model through it.
+    const delta = Math.min(frameDelta, 1 / CRT_FPS);
     if (vrm) {
       vrm.scene.position.set(0, -4, 0);
       vrm.scene.scale.set(8, 7, 7);
@@ -38,30 +40,63 @@ export const VRMModel: FC<{
     }
   });
 
-  return vrm ? <primitive object={vrm.scene} /> : null;
+  return vrm ? <primitive object={vrm.scene} dispose={null} /> : null;
 };
 
-export function TPoseRotate() {
-  const [vrm, setVrm] = useState<import("@pixiv/three-vrm").VRM | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+type VRM = import("@pixiv/three-vrm").VRM;
+
+// Loaded once and kept, so showing the model again doesn't reload it.
+let loadedVrm: VRM | null = null;
+let vrmLoad: Promise<VRM> | undefined;
+
+function loadVrm() {
+  vrmLoad ??= new Promise<VRM>((resolve, reject) => {
+    const loader = new GLTFLoader();
+    loader.register((parser: any) => new VRMLoaderPlugin(parser));
+    loader.load(
+      "https://cdn.mikn.dev/vroid/みかん(Web).vrm",
+      (gltf: GLTF) => resolve((loadedVrm = gltf.userData.vrm)),
+      undefined,
+      reject,
+    );
+  }).catch((error: unknown) => {
+    vrmLoad = undefined;
+    throw error;
+  });
+  return vrmLoad;
+}
+
+/** Renders a frame CRT_FPS times a second while `active`, and none otherwise. */
+function LowFramerate({ active }: { active: boolean }) {
+  const invalidate = useThree((state) => state.invalidate);
+  useEffect(() => {
+    if (!active) return;
+    const timer = setInterval(() => invalidate(), 1000 / CRT_FPS);
+    return () => clearInterval(timer);
+  }, [active, invalidate]);
+  return null;
+}
+
+/** The spinning model. While not `active` it stays loaded but stops rendering. */
+export function TPoseRotate({ active = true }: { active?: boolean }) {
+  const [vrm, setVrm] = useState<VRM | null>(loadedVrm);
+  const [isLoaded, setIsLoaded] = useState(loadedVrm !== null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    const loader = new GLTFLoader();
-    loader.register((parser: any) => new VRMLoaderPlugin(parser));
-
-    loader.load(
-      "https://cdn.mikn.dev/vroid/みかん(Web).vrm",
-      (gltf: GLTF) => {
-        const loadedVrm = gltf.userData.vrm;
-        setVrm(loadedVrm);
+    if (loadedVrm) return;
+    let active = true;
+    loadVrm().then(
+      (loaded) => {
+        if (!active) return;
+        setVrm(loaded);
         setIsLoaded(true);
       },
-      undefined,
-      (error: Error) => {
-        console.error("An error occurred while loading the model:", error);
-      },
+      (error: unknown) => console.error("An error occurred while loading the model:", error),
     );
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -75,14 +110,15 @@ export function TPoseRotate() {
   }, []);
 
   return (
-    <div className="overflow-hidden w-7h h-60 md:w-150 md:h-120 relative">
+    <div className="overflow-hidden size-full relative">
       <div className="flex flex-col justify-center items-center w-full h-full">
         {!isLoaded ? (
           <div className="flex items-center justify-center">
-            <Spinner className={"text-primary size-12"} />
+            <span className="loading loading-spinner loading-xl text-primary" />
           </div>
         ) : (
-          <Canvas camera={{ position: [0, 0, 6.5] }}>
+          <Canvas frameloop="demand" camera={{ position: [0, 0, 6.5] }}>
+            <LowFramerate active={active} />
             <ambientLight intensity={1.8} />
             <VRMModel vrm={vrm} mousePosition={mousePosition} />
           </Canvas>

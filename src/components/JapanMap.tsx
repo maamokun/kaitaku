@@ -1,8 +1,8 @@
 import { geoMercator, geoPath } from "d3-geo";
 import type { MultiPoint } from "geojson";
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import type { Visited } from "../shared/visited";
-import { prefectureName, prefectures } from "./prefectures";
+import type { Visited } from "../../shared/visited";
+import { prefectureName, prefectures } from "../prefectures";
 
 const WIDTH = 800;
 const HEIGHT = 920;

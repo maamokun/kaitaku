@@ -6,8 +6,8 @@ import "@fontsource/dotgothic16";
 import "@fontsource/klee-one/600.css";
 import "@fontsource/pacifico";
 import "./index.css";
-import AdminPage from "./AdminPage.tsx";
-import MapPage from "./MapPage.tsx";
+import AdminPage from "./components/AdminPage.tsx";
+import MapPage from "./components/MapPage.tsx";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);

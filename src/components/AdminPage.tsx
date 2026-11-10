@@ -1,8 +1,8 @@
 import { useState } from "react";
 import useSWR from "swr";
-import type { AdminPrefecture, Override, PrefectureSettings, Visited } from "../shared/visited";
-import { formatFirstVisited, formatVisitCount } from "./format";
-import { prefectureName } from "./prefectures";
+import type { AdminPrefecture, Override, PrefectureSettings, Visited } from "../../shared/visited";
+import { formatFirstVisited, formatVisitCount } from "../format";
+import { prefectureName } from "../prefectures";
 
 const ASSET_ID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const thumbnail = (assetId: string) => `/api/admin/thumbnails/${assetId}`;

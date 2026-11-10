@@ -86,12 +86,103 @@
   animation-name: crt-draw-up;
 }
 
+/* How long one scanline sweep takes, top to bottom: the startup reveal and the cut to blank. */
+:root {
+  --crt-sweep: 900ms;
+}
+
+/* Cut to blank: a blank cover is drawn over the old content row by row, then swept away the same way
+   to reveal the new content, at the speed of the startup reveal. One cover per row set, so the
+   content itself is rendered only once. The swap happens while the screen is fully blank:
+   `crt-leaving` content stays visible until then, and `crt-entering` content stays hidden until then. */
+.crt-cut {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--color-base-100);
+  animation-duration: var(--crt-sweep);
+  animation-timing-function: linear;
+  /* "forwards" only on the sweep, so it doesn't hold the cover in place while the draw runs. */
+  animation-fill-mode: both, forwards;
+  animation-delay: 0ms, var(--crt-sweep);
+}
+.crt-cut-down {
+  animation-name: crt-draw-down, crt-sweep-down;
+}
+.crt-cut-up {
+  animation-name: crt-draw-up, crt-sweep-up;
+}
+/* Without the sweep-in: the cover is gone the moment the screen is fully blank. */
+.crt-cut-instant.crt-cut-down {
+  animation-name: crt-draw-down, crt-gone;
+}
+.crt-cut-instant.crt-cut-up {
+  animation-name: crt-draw-up, crt-gone;
+}
+@keyframes crt-gone {
+  from,
+  to {
+    visibility: hidden;
+  }
+}
+.crt-entering {
+  animation: crt-wait-hidden var(--crt-sweep);
+}
+.crt-leaving {
+  visibility: hidden;
+  animation: crt-wait-visible var(--crt-sweep);
+}
+@keyframes crt-wait-hidden {
+  from,
+  to {
+    visibility: hidden;
+  }
+}
+@keyframes crt-wait-visible {
+  from,
+  to {
+    visibility: visible;
+  }
+}
+
+/* A chunky hardware push button that stays latched down while its mode is on. */
+.retro-button {
+  display: inline-grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid rgb(0 0 0 / 0.5);
+  border-radius: var(--radius-field);
+  background: linear-gradient(to bottom, var(--color-base-300), var(--color-base-200));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    0 3px 0 rgb(0 0 0 / 0.45);
+  color: var(--color-primary);
+  transition:
+    transform 100ms ease-out,
+    box-shadow 100ms ease-out,
+    text-shadow 100ms ease-out;
+}
+.retro-button:active,
+.retro-button[aria-pressed="true"] {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 3px rgb(0 0 0 / 0.5),
+    0 1px 0 rgb(0 0 0 / 0.45);
+}
+.retro-button[aria-pressed="true"] {
+  text-shadow: 0 0 6px var(--color-primary);
+}
+.retro-button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 /* CRT startup, interlaced: odd rows sweep from the top, even rows from the bottom. The title is
    drawn in, holds, is erased to a blank screen, and then the blank card is cut away the same way to
    reveal the map beneath. The card exists twice, each copy masked to its own rows, so together the
    copies hide the map completely. */
 .crt-title {
-  --crt-sweep: 900ms;
   --crt-hold: 1600ms;
   --crt-blank: 300ms;
   position: absolute;
@@ -193,6 +284,20 @@
     animation-name: crt-fade;
     animation-duration: 150ms;
     animation-timing-function: ease;
+  }
+  .crt-cut {
+    animation-name: crt-fade, crt-fade-out;
+    animation-duration: 150ms;
+    animation-delay: 0ms, 150ms;
+    animation-timing-function: ease;
+  }
+  .crt-cut-instant.crt-cut-down,
+  .crt-cut-instant.crt-cut-up {
+    animation-name: crt-fade, crt-gone;
+  }
+  .crt-entering,
+  .crt-leaving {
+    animation-duration: 150ms;
   }
   .crt-title {
     animation-name: crt-fade-out;
