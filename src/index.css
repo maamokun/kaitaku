@@ -1,0 +1,219 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "DSEG14 Classic";
+  src: url("./assets/DSEG14Classic-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "DSEG14 Classic";
+  src: url("./assets/DSEG14Classic-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+@theme {
+  --font-segment: "DSEG14 Classic", ui-monospace, monospace;
+  --font-script: "Pacifico", cursive;
+  --font-title: "Klee One", serif;
+  --font-dot: "DotGothic16", monospace;
+}
+@plugin "daisyui" {
+  themes: false;
+}
+@plugin "daisyui/theme" {
+  name: "orange";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: #2d1800;
+  --color-base-200: #4a2a00;
+  --color-base-300: #663d00;
+  --color-base-content: #ffffff;
+  --color-primary: #ff9900;
+  --color-primary-content: #ffffff;
+  --color-secondary: #ff7700;
+  --color-secondary-content: #ffffff;
+  --color-accent: #ff7700;
+  --color-accent-content: #ffffff;
+  --color-neutral: #262626;
+  --color-neutral-content: #fafafa;
+  --color-info: #1f3fad;
+  --color-info-content: #fafafa;
+  --color-success: #22c55e;
+  --color-success-content: #2d1800;
+  --color-warning: #ff7700;
+  --color-warning-content: #ffffff;
+  --color-error: #ff6467;
+  --color-error-content: #fafafa;
+
+  --radius-selector: 0.375rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.625rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+
+  --depth: 1;
+  --noise: 0;
+}
+
+/* Interlace: each copy of a screen's content shows only its own 4px rows. */
+.crt-rows-odd {
+  mask-image: repeating-linear-gradient(to bottom, #000 0 4px, transparent 4px 8px);
+}
+.crt-rows-even {
+  mask-image: repeating-linear-gradient(to bottom, transparent 0 4px, #000 4px 8px);
+}
+
+/* Small screens: new content is drawn over the old, row by row, with no blank in between. */
+.crt-swap {
+  position: absolute;
+  inset: 0;
+  background: var(--color-base-100);
+  animation-duration: 250ms;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+.crt-swap-down {
+  animation-name: crt-draw-down;
+}
+.crt-swap-up {
+  animation-name: crt-draw-up;
+}
+
+/* CRT startup, interlaced: odd rows sweep from the top, even rows from the bottom. The title is
+   drawn in, holds, is erased to a blank screen, and then the blank card is cut away the same way to
+   reveal the map beneath. The card exists twice, each copy masked to its own rows, so together the
+   copies hide the map completely. */
+.crt-title {
+  --crt-sweep: 900ms;
+  --crt-hold: 1600ms;
+  --crt-blank: 300ms;
+  position: absolute;
+  inset: 0;
+  background: var(--color-base-100);
+  animation-duration: var(--crt-sweep);
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-delay: calc(2 * var(--crt-sweep) + var(--crt-hold) + var(--crt-blank));
+}
+.crt-title-content {
+  position: absolute;
+  inset: 0;
+  animation-duration: var(--crt-sweep);
+  animation-timing-function: linear;
+  /* "forwards" only on the erase, so it doesn't hold the text fully visible while the draw-in runs. */
+  animation-fill-mode: both, forwards;
+  animation-delay: 0ms, calc(var(--crt-sweep) + var(--crt-hold));
+}
+.crt-title-odd {
+  animation-name: crt-sweep-down;
+}
+.crt-title-even {
+  animation-name: crt-sweep-up;
+}
+.crt-title-odd .crt-title-content {
+  animation-name: crt-draw-down, crt-sweep-down;
+}
+.crt-title-even .crt-title-content {
+  animation-name: crt-draw-up, crt-sweep-up;
+}
+.crt-waiting .crt-title,
+.crt-waiting .crt-title-content {
+  animation-play-state: paused;
+}
+
+@keyframes crt-draw-down {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes crt-draw-up {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes crt-sweep-down {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(100% 0 0 0);
+  }
+}
+@keyframes crt-sweep-up {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+
+/* A pinned prefecture blinks between lit and unlit, once a second. */
+.prefecture-pinned {
+  animation: prefecture-blink 1s steps(1, end) infinite;
+}
+@keyframes prefecture-blink {
+  50% {
+    fill: var(--color-base-300);
+  }
+}
+
+/* Always-on CRT glass: fine scanlines and darkened edges. Static on purpose, next to a map people read. */
+.crt-overlay {
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 2px, rgb(0 0 0 / 0.3) 2px 4px),
+    radial-gradient(ellipse at center, transparent 55%, rgb(0 0 0 / 0.45) 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prefecture-pinned {
+    animation: none;
+    fill: var(--color-accent);
+  }
+  .crt-rows-odd {
+    mask-image: none;
+  }
+  .crt-rows-even {
+    display: none;
+  }
+  .crt-swap {
+    animation-name: crt-fade;
+    animation-duration: 150ms;
+    animation-timing-function: ease;
+  }
+  .crt-title {
+    animation-name: crt-fade-out;
+    animation-duration: 200ms;
+    animation-timing-function: ease;
+  }
+  .crt-title-content {
+    animation-name: crt-fade, crt-fade-out;
+    animation-duration: 200ms;
+    animation-timing-function: ease;
+  }
+}
+
+@keyframes crt-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes crt-fade-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
